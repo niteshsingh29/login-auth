@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const express = require("express");
 const router = new express.Router();
 const Register = require("../model/mongoose");
-const cors = require("cors")
+const cors = require("cors");
 
 router.use(express.json());
 router.use(cors());
@@ -20,8 +20,22 @@ router.post("/register", async (req, res) => {
       confirmPassword: req.body.confirmPassword,
     });
     const result = await document.save();
-    console.log(result);
     res.status(200).send(result);
+  } catch (err) {
+    console.log(err.message);
+  }
+});
+router.post("/login", async (req, res) => {
+  try {
+    const email = req.body.valueEmail;
+    const password = req.body.valuePassword;
+    const Authentication = await Register.findOne({ Email: email });
+    if (Authentication.Password === password) {
+      console.log("user verified");
+      res.status(200).send(`<h1>Welcome Back ${Authentication.userName}</h1>`)
+    } else {
+      console.log("Password doesnt match");
+    }
   } catch (err) {
     console.log(err.message);
   }
