@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 mongoose
-  .connect("mongodb://localhost:27017/login", {})
+  .connect("mongodb://localhost:27017/shopping", {})
   .then(() => {
     console.log("connected to mongodb");
   })
