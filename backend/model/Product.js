@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
     require: true,
     unique: true,
   },
+  _id: String
 });
 
 const Product = new mongoose.model("product", schema);

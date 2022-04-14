@@ -72,30 +72,71 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/addproduct", async (req, res) => {
-  const { productname } = req.body;
-  if (!productname) {
-    res.status(400).send("productname is required");
-  }
   try {
+    const { productname } = req.body;
+    if (!productname) {
+      res.status(400).send("productname is required");
+    }
+
     const product = await Product.create({
       productName: productname,
     });
 
-    res.status(200).send({ ...result, result_1 });
-    // // const productId = await Product.findOne({
-    // //   _id: req.body._id,
-    // // });
-    // const brandDocument = new Brandprice({
-    //   product_id: req.body._id,
-    //   brandName: req.body.brand,
-    //   price: req.body.price,
-    // });
-
-    // const result_1 = await brandDocument.save();
+    res.status(201).send(product);
   } catch (err) {
-    console.log(err.message);
+    return res
+      .status(500)
+      .send(
+        "sorry for inconvenience caused this error is from internal server error" +
+          err.message
+      );
   }
 });
+router.post("/addbrands", async (req, res) => {
+  try {
+    const { brandName, price, product_id } = req.body;
+    if (!product_id) {
+      res.status(400).send("product id needed ");
+    }
+    const productId = await Product.findOne({
+      _id: product_id,
+    });
+    console.log(productId);
+    if (productId) {
+      console.log("token will be created");
+    } else {
+      res
+        .status(404)
+        .send("sorry we dont have this type of products available");
+    }
+
+    // const products = await Product.find();
+    // let productsArray = [];
+    // products.map((item) => productsArray.push(item._id));
+    // console.log(productsArray);
+
+    // if (productsArray[1] === product_id) {
+    //   console.log("ok will create token");
+    // } else {
+    //   res
+    //     .status(404)
+    //     .send("sorry we dont have this type of products available");
+    // }
+    // const brand = await Brandprice.create({
+    //   brandName: brandName,
+    //   product_id: productId._id,
+    //   price: price,
+    // });
+    // const token = jwt.sign({ brand_id: brand._id }, process.env.JWT_KEY, {
+    //   expiresIn: "2h",
+    // });
+    // brand.token = token;
+    // res.status(201).send(token);
+  } catch (err) {
+    return res.status(500).send("Sorry internal error occured" + err.message);
+  }
+});
+
 router.post("/purchase", async (req, res) => {
   try {
     const userId = req.body.user_id;
