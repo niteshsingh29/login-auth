@@ -6,62 +6,92 @@ const Product = require("../model/Product");
 const Brandprice = require("../model/Productbrand");
 const User = require("../model/User");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const env = require("dotenv").config();
+const auth = require("../middleware/middleware");
 
 router.use(express.json());
 router.use(cors());
-router.get("/", (req, res) => {
-  console.log("sending from router");
-  res.send("sending from backend Router");
+
+router.get("/", auth, (req, res) => {
+  res.status(200).send("Welcome");
 });
 
 router.post("/register", async (req, res) => {
   try {
-    const document = new Register({
-      userName: req.body.userName,
-      Email: req.body.Email,
-      Password: req.body.Password,
-      confirmPassword: req.body.confirmPassword,
+    const { userName, Email, Password, confirmPassword } = req.body;
+    if (!(userName && Email && Password && confirmPassword)) {
+      res.status(400).send("please fill all details");
+    }
+
+    const alreadyUser = await Register.findOne({
+      Email: Email,
     });
-    const result = await document.save();
-    res.status(200).send(result);
+    if (alreadyUser) {
+      res.status(409).send("user already exists");
+    }
+    const registered_user = await Register.create({
+      userName: userName,
+      Email: Email,
+      Password: Password,
+      confirmPassword: confirmPassword,
+    });
+
+    res.status(201).send(registered_user);
   } catch (err) {
-    console.log(err.message);
+    return res.status(500).send(err.message);
   }
 });
 router.post("/login", async (req, res) => {
   try {
-    const email = req.body.valueEmail;
-    const password = req.body.valuePassword;
-    const Authentication = await Register.findOne({ Email: email });
-    if (Authentication.Password === password) {
-      console.log("user verified");
-      res.status(200).send(Authentication);
-    } else {
-      console.log("Password doesnt match");
+    const { valueEmail, valuePassword } = req.body;
+    if (!(valueEmail && valuePassword)) {
+      res.status(400).send("please fill email and password");
     }
+
+    const Authentication = await Register.findOne({ Email: valueEmail });
+
+    if (Authentication && Authentication.Password === valuePassword) {
+      const token = jwt.sign(
+        { user_id: Authentication._id, valueEmail: valueEmail },
+        process.env.JWT_KEY,
+        { expiresIn: "2h" }
+      );
+
+      Authentication.token = token;
+      res.status(200).json(token);
+    }
+    res.status(401).send("invlaid PAssword");
   } catch (err) {
-    console.log(err.message);
+    return res
+      .status(500)
+      .send(
+        "sorry for incovenience caused due to internal error: " + err.message
+      );
   }
 });
 
 router.post("/addproduct", async (req, res) => {
+  const { productname } = req.body;
+  if (!productname) {
+    res.status(400).send("productname is required");
+  }
   try {
-    const productDocument = new Product({
-      productName: req.body.productname,
+    const product = await Product.create({
+      productName: productname,
     });
-    const result = await productDocument.save();
-    // const productId = await Product.findOne({
-    //   _id: req.body._id,
-    // });
-    const brandDocument = new Brandprice({
-      product_id: req.body._id,
-      brandName: req.body.brand,
-      price: req.body.price,
-    });
-
-    const result_1 = await brandDocument.save();
 
     res.status(200).send({ ...result, result_1 });
+    // // const productId = await Product.findOne({
+    // //   _id: req.body._id,
+    // // });
+    // const brandDocument = new Brandprice({
+    //   product_id: req.body._id,
+    //   brandName: req.body.brand,
+    //   price: req.body.price,
+    // });
+
+    // const result_1 = await brandDocument.save();
   } catch (err) {
     console.log(err.message);
   }
@@ -73,7 +103,7 @@ router.post("/purchase", async (req, res) => {
       _id: req.body.itemId,
     });
     const document = new User({
-      item_id: [...purchaseItem ],
+      item_id: purchaseItem,
       user_id: userId,
     });
     const result = await document.save();

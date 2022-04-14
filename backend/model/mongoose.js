@@ -9,29 +9,26 @@ mongoose
     console.log(err.message);
   });
 
-  const schema = new mongoose.Schema({
-    userName: {
-      type: String,
-      require: true,
-      unique: true,
-    },
-    Email: {
-      type: String,
-      require: true,
-      unique: true,
-    },
-    Password: {
-      type: String,
-      require: true,
-      unique: true,
-    },
-    confirmPassword: {
-      type: String,
-      require: true,
-      unique: true,
-    },
-  });
-  
-  const Register = new mongoose.model("Register", schema);
-  
-  module.exports = Register;
+const schema = new mongoose.Schema({
+  userName: {
+    type: String,
+  },
+  Email: {
+    type: String,
+    unique: true,
+  },
+  Password: {
+    type: String,
+  },
+  confirmPassword: {
+    type: String,
+  },
+  token: {
+    type: String,
+    require:true,
+  },
+});
+
+const Register = new mongoose.model("Register", schema);
+
+module.exports = Register;
