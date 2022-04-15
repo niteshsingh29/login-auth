@@ -4,11 +4,12 @@ const router = new express.Router();
 const Register = require("../model/mongoose");
 const Product = require("../model/Product");
 const Brandprice = require("../model/Productbrand");
-const User = require("../model/User");
+const Purchaselist = require("../model/Purchaselist");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const env = require("dotenv").config();
 const auth = require("../middleware/middleware");
+const Session = require("../model/Session");
 
 router.use(express.json());
 router.use(cors());
@@ -42,40 +43,57 @@ router.post("/register", async (req, res) => {
     return res.status(500).send(err.message);
   }
 });
-router.post("/login", async (req, res) => {
-  try {
-    const { valueEmail, valuePassword } = req.body;
-    if (!(valueEmail && valuePassword)) {
-      res.status(400).send("please fill email and password");
+router
+  .route("/login")
+  .post(async (req, res) => {
+    try {
+      const { valueEmail, valuePassword } = req.body;
+      if (!(valueEmail && valuePassword)) {
+        return res.status(400).send("please fill email and password");
+      }
+
+      const Authentication = await Register.findOne({ Email: valueEmail });
+
+      if (Authentication && Authentication.Password === valuePassword) {
+        const a = {
+          expiresIn: "360s",
+        };
+        const token = jwt.sign(
+          { user_id: Authentication._id, valueEmail: valueEmail },
+          process.env.JWT_KEY,
+          a
+        );
+
+        Authentication.token = token;
+
+        await Session.create({
+          userEmail: valueEmail,
+          token: token,
+          expiration: a.expiresIn,
+        });
+        return res.status(200).send({
+          login: true,
+          jwt: token,
+        });
+      }
+      return res.status(401).send("invlaid PAssword");
+    } catch (err) {
+      return res
+        .status(500)
+        .send(
+          "sorry for incovenience caused due to internal error: " + err.message
+        );
     }
+  })
+  .all((req, res) => {
+    res.status(405).send("hey method not allowed");
+  });
 
-    const Authentication = await Register.findOne({ Email: valueEmail });
-
-    if (Authentication && Authentication.Password === valuePassword) {
-      const token = jwt.sign(
-        { user_id: Authentication._id, valueEmail: valueEmail },
-        process.env.JWT_KEY,
-        { expiresIn: "2h" }
-      );
-
-      Authentication.token = token;
-      res.status(200).json(token);
-    }
-    res.status(401).send("invlaid PAssword");
-  } catch (err) {
-    return res
-      .status(500)
-      .send(
-        "sorry for incovenience caused due to internal error: " + err.message
-      );
-  }
-});
-
-router.post("/addproduct", async (req, res) => {
+router.post("/addproduct", auth, async (req, res) => {
   try {
     const { productname } = req.body;
     if (!productname) {
-      res.status(400).send("productname is required");
+      return res.status(400).send("productname is required");
     }
 
     const product = await Product.create({
@@ -96,61 +114,30 @@ router.post("/addbrands", async (req, res) => {
   try {
     const { brandName, price, product_id } = req.body;
     if (!product_id) {
-      res.status(400).send("product id needed ");
+      return res.status(400).send("product id needed ");
     }
-    const productId = await Product.findOne({
-      _id: product_id,
-    });
-    console.log(productId);
-    if (productId) {
-      console.log("token will be created");
+
+    const products = await Product.find();
+    const filteredProduct = products.filter((items) => items._id == product_id);
+
+    if (filteredProduct.length >= 1) {
+      const brand = await Brandprice.create({
+        brandName: brandName,
+        product_id: filteredProduct[0]._id,
+        price: price,
+      });
+      const token = jwt.sign({ brand_id: brand._id }, process.env.JWT_KEY, {
+        expiresIn: "2h",
+      });
+      brand.token = token;
+      res.status(201).send({ success: true, jwt: token });
     } else {
       res
         .status(404)
         .send("sorry we dont have this type of products available");
     }
-
-    // const products = await Product.find();
-    // let productsArray = [];
-    // products.map((item) => productsArray.push(item._id));
-    // console.log(productsArray);
-
-    // if (productsArray[1] === product_id) {
-    //   console.log("ok will create token");
-    // } else {
-    //   res
-    //     .status(404)
-    //     .send("sorry we dont have this type of products available");
-    // }
-    // const brand = await Brandprice.create({
-    //   brandName: brandName,
-    //   product_id: productId._id,
-    //   price: price,
-    // });
-    // const token = jwt.sign({ brand_id: brand._id }, process.env.JWT_KEY, {
-    //   expiresIn: "2h",
-    // });
-    // brand.token = token;
-    // res.status(201).send(token);
   } catch (err) {
     return res.status(500).send("Sorry internal error occured" + err.message);
-  }
-});
-
-router.post("/purchase", async (req, res) => {
-  try {
-    const userId = req.body.user_id;
-    const purchaseItem = await Brandprice.find({
-      _id: req.body.itemId,
-    });
-    const document = new User({
-      item_id: purchaseItem,
-      user_id: userId,
-    });
-    const result = await document.save();
-    res.status(200).send(result);
-  } catch (err) {
-    console.log(err.message);
   }
 });
 
